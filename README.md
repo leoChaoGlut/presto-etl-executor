@@ -6,3 +6,4 @@
 - Replace placeholders inside sql files with prepared args
 # Usage
 - `python3 sql-flow-executor.py presto.host=${} presto.port=${} presto.user=${}`
+- see src code -> sql-flow-executor.py
