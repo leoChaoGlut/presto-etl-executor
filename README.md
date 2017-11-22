@@ -1,2 +1,6 @@
 # presto-etl-executor
-A python script for presto etl job. 
+# Intro
+- A python script for presto ETL jobs. 
+# Major Functions:
+- Execute sql files in order
+- Replace placeholders inside sql files with prepared args
