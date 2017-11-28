@@ -14,7 +14,7 @@ python3 ${thisScript} presto.host=${} presto.port=${} presto.user=${} ...
 
 def getMySQLConnection():
     return pymysql.connect(
-        host='fp-bd6',
+        host='localhost',
         port=3306,
         user='etl',
         password='etl',
@@ -26,6 +26,7 @@ def getMySQLConnection():
 
 NECESSARY_PARAMS = {
     'presto.host': {
+        'example': 'localhost'
     },
     'presto.port': {
         'example': '8080'
@@ -34,16 +35,14 @@ NECESSARY_PARAMS = {
         'example': 'dev'
     },
     'presto.catalog': {
-        'example': 'dev'
+        'example': 'dev_hive'
     },
     'presto.schema': {
-        'example': 'dev'
-    },
-    'table': {
-        'comment': '目标表,用于记录 placeholder_record'
+        'example': 'ods_hive'
     },
     'sql.url.prefix': {
-        'example': 'http://localhost'
+        'example': 'http://localhost',
+        'comment': '提供 sql 文件的远程目录.可用 apache ,nginx 等文件服务器提供 sql 文件访问功能.'
     },
     'sql.names': {
         'format': 'sqlName1,sqlName2,sqlName3',
@@ -56,15 +55,20 @@ OPTIONAL_PARAMS = {
         'example': 'placeholder',
         'comment': 'placeholder sql 文件名,执行后,可以获得所有 placeholder, 用于填充 sql.names 的 sql'
     },
+    'placeholder.loop': {
+        'example': 'p_create_time:party',
+        'format': 'placeholder1:sqlName1,placeholder2:sqlName2',
+        'comment': '通过一个以逗号分隔的 placeholder.split(","),决定一个 sql 脚本循环的次数'
+    },
     'placeholder.save': {
         'example': 'max_create_time,max_audit_time,max_id',
         'format': 'placeholder1,placeholder2,placeholder3',
         'comment': '需要被保存的 placeholder 名,逗号分隔'
     },
-    'placeholder.loop': {
-        'example': 'p_create_time:party',
-        'format': 'placeholder1:sqlName1,placeholder2:sqlName2',
-        'comment': '通过一个以逗号分隔的 placeholder.split(","),决定一个 sql 脚本循环的次数'
+    'placeholder.save.id': {
+        'comment': '1.需要保存的 placeholder 的数据库唯一 id, 通常用 schema.table 来作为id. 2.关联 placeholder.save,当 placeholder.save 有值, placeholder.save.id 也必须有值',
+        'example': 'clerk_info',
+        'relation': 'placeholder.save.id'
     },
 }
 
@@ -81,8 +85,16 @@ def parseParams():
 
 def checkNecessaryParams(params):
     for np in NECESSARY_PARAMS.keys():
-        if np not in params.keys():
+        if np in params.keys():
+            npValue = params[np].strip()
+            if not npValue:
+                raise Exception("Necessary Param's Value Should Not Be Empty: " + np)
+        else:
             raise Exception("Necessary Param Not Found: " + np)
+        
+    if 'placeholder.save' in params.keys():
+        if 'placeholder.save.id' not in params.keys():
+            raise Exception("When placeholder.save is provided,placeholder.save.id must provided too.")
 
 
 def getPrestoConnection(params):
@@ -182,7 +194,7 @@ def savePlaceholders(params, placeholders):
                     VALUES ('{}','{}')
                     ON DUPLICATE KEY UPDATE placeholders = '{}'
                 """.format(
-                    params['presto.schema'] + '.' + params['table'],
+                    params['placeholder.save.id'],
                     phToBeSavedJSON,
                     phToBeSavedJSON,
                 )
