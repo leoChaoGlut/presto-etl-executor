@@ -58,7 +58,11 @@ OPTIONAL_PARAMS = {
     'placeholder.loop': {
         'example': 'p_create_time:party',
         'format': 'placeholder1:sqlName1,placeholder2:sqlName2',
-        'comment': '通过一个以逗号分隔的 placeholder.split(","),决定一个 sql 脚本循环的次数'
+        'comment': '通过一个以逗号分隔的 placeholderValue.split(","),决定一个 sql 脚本循环的次数'
+    },
+    'placeholder.loop.value.separator': {
+        'comment': 'placeholder value 的分隔符,默认是逗号',
+        'relation': 'placeholder.loop'
     },
     'placeholder.save': {
         'example': 'max_create_time,max_audit_time,max_id',
@@ -71,6 +75,8 @@ OPTIONAL_PARAMS = {
         'relation': 'placeholder.save.id'
     },
 }
+
+DEFAULT_LOOP_VALUE_SEPARATOR = ','
 
 
 def parseParams():
@@ -91,7 +97,7 @@ def checkNecessaryParams(params):
                 raise Exception("Necessary Param's Value Should Not Be Empty: " + np)
         else:
             raise Exception("Necessary Param Not Found: " + np)
-        
+
     if 'placeholder.save' in params.keys():
         if 'placeholder.save.id' not in params.keys():
             raise Exception("When placeholder.save is provided,placeholder.save.id must provided too.")
@@ -220,8 +226,16 @@ def getLoopParam(params):
     return loopParam
 
 
-def loopSql(prestoCur, sqlFile, placeholders, loopPlaceholderKey):
-    loopValues = placeholders[loopPlaceholderKey].split(',')
+def getLoopValueSeparator(params):
+    if 'placeholder.loop.value.separator' in params.keys():
+        return params['placeholder.loop.value.separator']
+    else:
+        return DEFAULT_LOOP_VALUE_SEPARATOR
+
+
+def loopSql(prestoCur, sqlFile, placeholders, loopPlaceholderKey, params):
+    loopValueSeparator = getLoopValueSeparator(params)
+    loopValues = placeholders[loopPlaceholderKey].split(loopValueSeparator)
     for key in placeholders:
         if key != loopPlaceholderKey:
             sqlFile = sqlFile.replace('{' + key + '}', placeholders[key])
@@ -244,7 +258,7 @@ def exec():
             sqlFile = pair[1]
             print(sqlName)
             if sqlName in loopParam.keys():
-                loopSql(prestoCur, sqlFile, placeholders, loopParam[sqlName])
+                loopSql(prestoCur, sqlFile, placeholders, loopParam[sqlName], params)
             else:
                 execSQLFileIgnoreResult(prestoCur, fillPlaceholder(sqlFile, placeholders))
 
